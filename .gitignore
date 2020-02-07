@@ -3,3 +3,6 @@
 *.out
 out/
 *.DS_Store
+*.in
+*.txt
+src/streaming_videos/data/
