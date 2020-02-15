@@ -56,6 +56,34 @@ def randomly_remove(items, capacity):
     return best_sol_value, curr_best_sol
 
 
+def randomize(items, capacity):
+    score = 0
+    sol = []
+    indices = list(range(0, len(items)))
+    random.shuffle(indices)
+    for i in indices:
+        item = items[i]
+        if score + item > capacity:
+            break
+        sol.append(i)
+        score += item
+    return score, sol
+
+
+def repeat_randomize(items, capacity):
+    curr_best = -1
+    curr_best_sol = []
+    while True:
+        score, sol = randomize(items, capacity)
+        if score > curr_best:
+            curr_best = score
+            curr_best_sol = sol
+        if curr_best == capacity:
+            break
+    sys.stderr.write("sol_val: {}\n".format(curr_best))
+    return curr_best, curr_best_sol
+
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         file_location = sys.argv[1].strip()
@@ -67,6 +95,6 @@ if __name__ == '__main__':
         if _capacity < 10000:
             result = knapsack(_items, _capacity)
         else:
-            result = randomly_remove(_items, _capacity)
+            result = repeat_randomize(_items, _capacity)
         print(len(result[1]))
         print(' '.join(map(str, result[1])))
