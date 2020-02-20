@@ -3,6 +3,7 @@ package self_driving_rides
 import java.io.*
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.pow
 
 fun main() {
     solve("src/self_driving_rides/data/a_example.in", "src/self_driving_rides/output/a_example.out")
@@ -18,6 +19,7 @@ fun solve(inputFile: String, outputFile: String) {
     val output = File(outputFile)
     output.createNewFile()
     outputWriter = OutputStreamWriter(FileOutputStream(output))
+    println(inputFile)
     currLine = -1
     lines = inputReader.readLines()
     val (_, _, F, N, B, T) = readInts()
@@ -36,10 +38,12 @@ fun solve(inputFile: String, outputFile: String) {
 //    vehicles[1].rides.add(rides[2])
 //    vehicles[1].rides.add(rides[1])
     assignRides(rides, vehicles)
+//    assignRidesPerVehicle(rides, vehicles)
     writeToOutput(vehicles)
     val score = calcScore(vehicles)
     totalScore += score
     println("Score: $score")
+    println("=================================\n\n")
 }
 
 private var steps = -1
@@ -65,10 +69,9 @@ fun writeToOutput(vehicles: List<Vehicle>) {
  * Sorting by distance to origin: 30902669
  */
 fun assignRides(rides: MutableList<Ride>, vehicles: List<Vehicle>) {
-    rides.sortBy { ride -> ride.latestStart } // Try other criteria such as distance, earliest start e.t.c
+//    rides.sortBy { ride -> ride.latestStart } // Try other criteria such as distance, earliest start e.t.c
 
-//    rides.sortBy { ride -> ride.length }
-//    rides.reverse()
+//    rides.sortByDescending { ride -> ride.length }
 
 //    rides.sortBy { ride -> ride.earliestStart }
 
@@ -78,7 +81,19 @@ fun assignRides(rides: MutableList<Ride>, vehicles: List<Vehicle>) {
     var ridesFulfilled = 0
     rides.forEach { ride ->
         val scores =
-            vehicles.map { vehicle -> Pair(scoreForTaking(vehicle, ride), vehicle) }.sortedByDescending { it.first }
+            vehicles.map { vehicle ->
+                Pair(scoreForTaking(vehicle, ride)*1000 - timeWasted(vehicle, ride),
+                    vehicle)
+            }.sortedByDescending { it.first }
+//        val scores =
+//            vehicles.map { vehicle -> Pair(timeWasted(vehicle, ride), vehicle) }.sortedBy { it.first }
+//        val scores =
+//            vehicles.map { vehicle ->
+//                Pair(
+//                    combinedScores(scoreForTaking(vehicle, ride), timeWasted(vehicle, ride)),
+//                    vehicle
+//                )
+//            }.sortedByDescending { it.first }
 //        if (curr == 1) println("${scores.map { it.first }} \n${ride.latestFinish} ${ride.start}")
         if (scores[0].first >= 0) {
             take(scores[0].second, ride)
@@ -91,12 +106,46 @@ fun assignRides(rides: MutableList<Ride>, vehicles: List<Vehicle>) {
     println("Rides fulfilled: $ridesFulfilled / ${rides.size}")
 }
 
+fun assignRidesPerVehicle(rides: MutableList<Ride>, vehicles: List<Vehicle>) {
+    var ridesFulfilled = 0
+    val taken = MutableList(rides.size) { false }
+    vehicles.forEach { vehicle ->
+        val scores = rides.map { ride ->
+            Pair(
+                if (taken[ride.id]) Int.MAX_VALUE else vehicle.currIntersection.distanceTo(ride.end),
+                ride
+            )
+        }.sortedBy { it.first }
+        scores.forEach { score ->
+            if (canTake(vehicle, score.second) && !taken[score.second.id]) {
+                take(vehicle, score.second)
+                taken[score.second.id] = true
+                ridesFulfilled++
+            }
+        }
+    }
+    val vehiclesUsed = vehicles.filter { it.rides.size > 0 }.size
+    println("Vehicles used: $vehiclesUsed / ${vehicles.size}")
+    println("Rides fulfilled: $ridesFulfilled / ${rides.size}")
+}
+
+fun combinedScores(score: Int, timeWasted: Int): Double {
+    if (score == -1 || timeWasted == Int.MAX_VALUE) return (-1).toDouble()
+    if (timeWasted == 0) return score.toDouble()
+    return score / timeWasted.toDouble()
+}
+
 fun scoreForTaking(vehicle: Vehicle, ride: Ride): Int {
     if (!canTake(vehicle, ride)) return -1
     var score = ride.length
     val startStep = vehicle.currStep + vehicle.currIntersection.distanceTo(ride.start)
     if (startStep <= ride.earliestStart) score += bonus
     return score
+}
+
+fun timeWasted(vehicle: Vehicle, ride: Ride): Int {
+    if (!canTake(vehicle, ride)) return 10.toDouble().pow(6).toInt()
+    return ride.earliestStart - vehicle.currStep
 }
 
 fun canTake(vehicle: Vehicle, ride: Ride): Boolean {
